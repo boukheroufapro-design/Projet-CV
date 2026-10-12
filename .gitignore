@@ -1,0 +1,32 @@
+# .NET
+**/bin/
+**/obj/
+**/publish/
+**/out/
+**/TestResults/
+**/*.user
+**/*.suo
+.vs/
+
+# Angular / Node
+**/node_modules/
+**/dist/
+**/.angular/
+**/coverage/
+npm-debug.log*
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# IDE and OS files
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/mcp.json
+.DS_Store
+Thumbs.db
