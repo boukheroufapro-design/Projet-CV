@@ -27,10 +27,45 @@ jobs:
       AZURE_ENVIRONMENT_NAME: ${{ vars.AZURE_ENVIRONMENT_NAME }}
       AZURE_API_APP_NAME: ${{ vars.AZURE_API_APP_NAME }}
       AZURE_FRONTEND_APP_NAME: ${{ vars.AZURE_FRONTEND_APP_NAME }}
+      AZURE_PRINCIPAL_ID: ${{ vars.AZURE_PRINCIPAL_ID }}
 
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
+      - name: Validate Azure configuration
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+
+          required_vars=(
+            AZURE_RESOURCE_GROUP
+            AZURE_LOCATION
+            ACR_NAME
+            AZURE_ENVIRONMENT_NAME
+            AZURE_API_APP_NAME
+            AZURE_FRONTEND_APP_NAME
+            AZURE_PRINCIPAL_ID
+            AZURE_CLIENT_ID
+            AZURE_TENANT_ID
+            AZURE_SUBSCRIPTION_ID
+          )
+
+          for name in "${required_vars[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Required GitHub Actions variable or secret '$name' is missing."
+              exit 1
+            fi
+          done
+
+          if [[ ! "$ACR_NAME" =~ ^[a-z0-9]{5,50}$ ]]; then
+            echo "::error::ACR_NAME must contain 5-50 lowercase letters or digits."
+            exit 1
+          fi
 
       - name: Sign in to Azure with OpenID Connect
         uses: azure/login@v2
@@ -39,23 +74,45 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Create resource group and registry
+      - name: Verify Azure subscription
         shell: bash
         run: |
-          az group create \
-            --name "$AZURE_RESOURCE_GROUP" \
-            --location "$AZURE_LOCATION"
-          az acr create \
+          set -euo pipefail
+          az account show --output table
+
+      - name: Ensure resource group and registry exist
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$(az group exists --name "$AZURE_RESOURCE_GROUP" --output tsv)" != "true" ]]; then
+            az group create \
+              --name "$AZURE_RESOURCE_GROUP" \
+              --location "$AZURE_LOCATION"
+          else
+            group_location="$(az group show --name "$AZURE_RESOURCE_GROUP" --query location --output tsv)"
+            echo "Using existing resource group '$AZURE_RESOURCE_GROUP' in '$group_location'."
+          fi
+
+          registry_name="$(az acr list \
             --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$ACR_NAME" \
-            --sku Basic \
-            --admin-enabled false
+            --query "[?name=='$ACR_NAME'].name | [0]" \
+            --output tsv)"
+          if [[ -z "$registry_name" ]]; then
+            az acr create \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --name "$ACR_NAME" \
+              --sku Basic \
+              --admin-enabled false
+          else
+            echo "Using existing Azure Container Registry '$ACR_NAME'."
+          fi
 
       - name: Grant the workflow permission to push images
         shell: bash
-        env:
-          AZURE_PRINCIPAL_ID: ${{ vars.AZURE_PRINCIPAL_ID }}
         run: |
+          set -euo pipefail
+
           registry_id="$(az acr show --name "$ACR_NAME" --query id --output tsv)"
           assignment_id="$(az role assignment list \
             --assignee-object-id "$AZURE_PRINCIPAL_ID" \
@@ -74,6 +131,8 @@ jobs:
       - name: Build and push container images
         shell: bash
         run: |
+          set -euo pipefail
+
           registry="$(az acr show --name "$ACR_NAME" --query loginServer --output tsv)"
           az acr login --name "$ACR_NAME"
           docker build --file BackEnd/Dockerfile --tag "$registry/api:$GITHUB_SHA" .
@@ -85,6 +144,8 @@ jobs:
       - name: Deploy Azure resources
         shell: bash
         run: |
+          set -euo pipefail
+
           az deployment group create \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --template-file infra/azure/main.bicep \

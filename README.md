@@ -40,7 +40,7 @@ Le workflow GitHub Actions construit les images, les publie dans Azure Container
 3. Configure les variables GitHub Actions du dépôt :
    - `AZURE_RESOURCE_GROUP`
    - `AZURE_LOCATION` (par exemple `westeurope`)
-   - `ACR_NAME` (nom globalement unique, en minuscules et sans tirets)
+   - `ACR_NAME` (nom globalement unique, de 5 à 50 caractères, minuscules et chiffres uniquement)
    - `AZURE_ENVIRONMENT_NAME`
    - `AZURE_API_APP_NAME`
    - `AZURE_FRONTEND_APP_NAME`
@@ -53,5 +53,7 @@ Le workflow GitHub Actions construit les images, les publie dans Azure Container
 6. Ajoute la fédération OIDC GitHub Actions à l'inscription d'application, puis pousse sur `master` ou `main` (selon la branche utilisée par le dépôt), ou lance manuellement le workflow **Build and deploy to Azure**.
 
 Le workflow crée le groupe de ressources et l'ACR s'ils n'existent pas, construit et pousse les images, puis déploie `infra/azure/main.bicep`. Le frontend est exposé publiquement ; l'API reste accessible uniquement depuis l'environnement Container Apps. Son URL est transmise à Nginx lors du démarrage.
+
+Le workflow valide les variables et secrets requis avant de se connecter à Azure. Il réutilise un groupe de ressources et un registre ACR existants. Pour un groupe de ressources existant, `AZURE_LOCATION` reste la région des ressources déployées ; changer la région du groupe existant n'est pas possible par cette variable.
 
 N'ajoute aucun secret, fichier `.env` ou identifiant Azure au dépôt.
