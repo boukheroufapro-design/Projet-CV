@@ -131,11 +131,14 @@ jobs:
             --query '[0].id' \
             --output tsv)"
           if [ -z "$assignment_id" ]; then
-            az role assignment create \
+            if ! az role assignment create \
               --assignee-object-id "$AZURE_PRINCIPAL_ID" \
               --assignee-principal-type ServicePrincipal \
               --role AcrPush \
-              --scope "$registry_id"
+              --scope "$registry_id"; then
+              echo "::error::The GitHub Actions identity cannot create the AcrPush role assignment. Grant it 'Role Based Access Control Administrator' on this ACR, then rerun the workflow."
+              exit 1
+            fi
           fi
 
       - name: Build and push container images

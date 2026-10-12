@@ -35,8 +35,8 @@ Le workflow GitHub Actions construit les images, les publie dans Azure Container
 
 ### Préparer Azure
 
-1. Crée une inscription d'application (service principal) avec une fédération OpenID Connect pour GitHub Actions. Configure aussi son rôle `Contributor` sur le groupe de ressources de déploiement. Le workflow se connecte à Azure sans mot de passe client.
-2. Configure les permissions Azure requises : le workflow enregistre les fournisseurs `Microsoft.ContainerRegistry` et `Microsoft.App`, crée l'ACR et attribue `AcrPush` au service principal GitHub Actions ; Bicep attribue `AcrPull` aux identités des deux Container Apps. Le premier déploiement nécessite donc les droits d'enregistrement de fournisseurs, de création de ressources et de création d'attributions de rôle. Si ces droits ne sont pas disponibles, demande à un administrateur Azure d'enregistrer les fournisseurs et de préparer les ressources/attributions nécessaires.
+1. Crée une inscription d'application (service principal) avec une fédération OpenID Connect pour GitHub Actions. Configure son rôle `Contributor` sur le groupe de ressources de déploiement. Le workflow se connecte à Azure sans mot de passe client.
+2. Le workflow attribue `AcrPush` à son principal de service et le modèle Bicep attribue `AcrPull` aux identités des deux Container Apps. Pour ces opérations, le principal GitHub Actions doit aussi recevoir le rôle `Role Based Access Control Administrator` (Administrateur du contrôle d'accès en fonction du rôle) sur l'ACR. L'ACR doit exister avant cette attribution : laisse un premier lancement le créer s'il n'existe pas, puis demande à un administrateur Azure d'attribuer ce rôle à l'identité Projet-CV sur l'ACR et relance le workflow. Si le premier lancement ne peut pas enregistrer les fournisseurs `Microsoft.ContainerRegistry` et `Microsoft.App`, demande à un administrateur Azure de les enregistrer dans l'abonnement.
 3. Configure les variables GitHub Actions du dépôt :
    - `AZURE_RESOURCE_GROUP`
    - `AZURE_LOCATION` (par exemple `westeurope`)
