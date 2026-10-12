@@ -36,7 +36,29 @@ Le workflow GitHub Actions construit les images, les publie dans Azure Container
 ### Préparer Azure
 
 1. Crée une inscription d'application (service principal) avec une fédération OpenID Connect pour GitHub Actions. Configure son rôle `Contributor` sur le groupe de ressources de déploiement. Le workflow se connecte à Azure sans mot de passe client.
-2. Le workflow attribue `AcrPush` à son principal de service et le modèle Bicep attribue `AcrPull` aux identités des deux Container Apps. Pour ces opérations, le principal GitHub Actions doit aussi recevoir le rôle `Role Based Access Control Administrator` (Administrateur du contrôle d'accès en fonction du rôle) sur l'ACR. L'ACR doit exister avant cette attribution : laisse un premier lancement le créer s'il n'existe pas, puis demande à un administrateur Azure d'attribuer ce rôle à l'identité Projet-CV sur l'ACR et relance le workflow. Si le premier lancement ne peut pas enregistrer les fournisseurs `Microsoft.ContainerRegistry` et `Microsoft.App`, demande à un administrateur Azure de les enregistrer dans l'abonnement.
+2. Le workflow attribue `AcrPush` à son principal de service et le modèle Bicep attribue `AcrPull` aux identités des deux Container Apps. Pour créer ces assignations, le principal GitHub Actions doit recevoir le rôle `Role Based Access Control Administrator` (Administrateur du contrôle d'accès en fonction du rôle) sur l'ACR. L'ACR doit exister avant cette attribution : laisse un premier lancement le créer s'il n'existe pas, puis un administrateur Azure peut exécuter les commandes suivantes dans Azure Cloud Shell (Bash), en remplaçant les valeurs entre chevrons :
+
+   ```bash
+   az account set --subscription "<AZURE_SUBSCRIPTION_ID>"
+
+   ACR_ID="$(az acr show \
+     --name "<ACR_NAME>" \
+     --resource-group "<AZURE_RESOURCE_GROUP>" \
+     --query id \
+     --output tsv)"
+   PRINCIPAL_ID="$(az ad sp show \
+     --id "<AZURE_CLIENT_ID>" \
+     --query id \
+     --output tsv)"
+
+   az role assignment create \
+     --assignee-object-id "$PRINCIPAL_ID" \
+     --assignee-principal-type ServicePrincipal \
+     --role "Role Based Access Control Administrator" \
+     --scope "$ACR_ID"
+   ```
+
+   `AZURE_CLIENT_ID` est l'ID client de l'inscription d'application; `PRINCIPAL_ID` est son ID d'objet de principal de service (la propriété CLI est `id`, pas `objectId`). Configure `PRINCIPAL_ID` comme variable GitHub Actions `AZURE_PRINCIPAL_ID`, puis relance le workflow. Attribuer seulement `AcrPush` ne suffit pas : Bicep doit aussi créer les deux assignations `AcrPull`. Si le premier lancement ne peut pas enregistrer les fournisseurs `Microsoft.ContainerRegistry` et `Microsoft.App`, demande à un administrateur Azure de les enregistrer dans l'abonnement.
 3. Configure les variables GitHub Actions du dépôt :
    - `AZURE_RESOURCE_GROUP`
    - `AZURE_LOCATION` (par exemple `westeurope`)
