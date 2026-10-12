@@ -36,7 +36,7 @@ Le workflow GitHub Actions construit les images, les publie dans Azure Container
 ### Préparer Azure
 
 1. Crée une inscription d'application (service principal) avec une fédération OpenID Connect pour GitHub Actions. Configure aussi son rôle `Contributor` sur le groupe de ressources de déploiement. Le workflow se connecte à Azure sans mot de passe client.
-2. Configure les permissions de rôle sur le groupe de ressources : le workflow attribue `AcrPush` au service principal GitHub Actions pour publier les images ; Bicep attribue `AcrPull` aux identités des deux Container Apps. Le premier déploiement nécessite donc aussi la permission de créer des attributions de rôle. Si elle n'est pas disponible, demande à un administrateur Azure de préparer ces attributions.
+2. Configure les permissions Azure requises : le workflow enregistre les fournisseurs `Microsoft.ContainerRegistry` et `Microsoft.App`, crée l'ACR et attribue `AcrPush` au service principal GitHub Actions ; Bicep attribue `AcrPull` aux identités des deux Container Apps. Le premier déploiement nécessite donc les droits d'enregistrement de fournisseurs, de création de ressources et de création d'attributions de rôle. Si ces droits ne sont pas disponibles, demande à un administrateur Azure d'enregistrer les fournisseurs et de préparer les ressources/attributions nécessaires.
 3. Configure les variables GitHub Actions du dépôt :
    - `AZURE_RESOURCE_GROUP`
    - `AZURE_LOCATION` (par exemple `westeurope`)
@@ -54,6 +54,6 @@ Le workflow GitHub Actions construit les images, les publie dans Azure Container
 
 Le workflow crée le groupe de ressources et l'ACR s'ils n'existent pas, construit et pousse les images, puis déploie `infra/azure/main.bicep`. Le frontend est exposé publiquement ; l'API reste accessible uniquement depuis l'environnement Container Apps. Son URL est transmise à Nginx lors du démarrage.
 
-Le workflow valide les variables et secrets requis avant de se connecter à Azure. Il réutilise un groupe de ressources et un registre ACR existants. Pour un groupe de ressources existant, `AZURE_LOCATION` reste la région des ressources déployées ; changer la région du groupe existant n'est pas possible par cette variable.
+Le workflow valide les variables et secrets requis avant de se connecter à Azure, puis vérifie l'abonnement et enregistre les fournisseurs Azure nécessaires. Il réutilise un groupe de ressources et un registre ACR existants. Pour un groupe de ressources existant, `AZURE_LOCATION` reste la région des ressources déployées ; changer la région du groupe existant n'est pas possible par cette variable.
 
 N'ajoute aucun secret, fichier `.env` ou identifiant Azure au dépôt.
