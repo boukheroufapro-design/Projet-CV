@@ -1,0 +1,98 @@
+name: Build and deploy to Azure
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - BackEnd/**
+      - FrontEnd/**
+      - infra/azure/**
+      - .dockerignore
+      - .github/workflows/deploy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      ACR_NAME: ${{ vars.ACR_NAME }}
+      AZURE_ENVIRONMENT_NAME: ${{ vars.AZURE_ENVIRONMENT_NAME }}
+      AZURE_API_APP_NAME: ${{ vars.AZURE_API_APP_NAME }}
+      AZURE_FRONTEND_APP_NAME: ${{ vars.AZURE_FRONTEND_APP_NAME }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Sign in to Azure with OpenID Connect
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Create resource group and registry
+        shell: bash
+        run: |
+          az group create \
+            --name "$AZURE_RESOURCE_GROUP" \
+            --location "$AZURE_LOCATION"
+          az acr create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$ACR_NAME" \
+            --sku Basic \
+            --admin-enabled false
+
+      - name: Grant the workflow permission to push images
+        shell: bash
+        env:
+          AZURE_PRINCIPAL_ID: ${{ vars.AZURE_PRINCIPAL_ID }}
+        run: |
+          registry_id="$(az acr show --name "$ACR_NAME" --query id --output tsv)"
+          assignment_id="$(az role assignment list \
+            --assignee-object-id "$AZURE_PRINCIPAL_ID" \
+            --scope "$registry_id" \
+            --role AcrPush \
+            --query '[0].id' \
+            --output tsv)"
+          if [ -z "$assignment_id" ]; then
+            az role assignment create \
+              --assignee-object-id "$AZURE_PRINCIPAL_ID" \
+              --assignee-principal-type ServicePrincipal \
+              --role AcrPush \
+              --scope "$registry_id"
+          fi
+
+      - name: Build and push container images
+        shell: bash
+        run: |
+          registry="$(az acr show --name "$ACR_NAME" --query loginServer --output tsv)"
+          az acr login --name "$ACR_NAME"
+          docker build --file BackEnd/Dockerfile --tag "$registry/api:$GITHUB_SHA" .
+          docker push "$registry/api:$GITHUB_SHA"
+          docker build --file FrontEnd/Dockerfile --tag "$registry/frontend:$GITHUB_SHA" .
+          docker push "$registry/frontend:$GITHUB_SHA"
+          echo "ACR_LOGIN_SERVER=$registry" >> "$GITHUB_ENV"
+
+      - name: Deploy Azure resources
+        shell: bash
+        run: |
+          az deployment group create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/azure/main.bicep \
+            --parameters @infra/azure/parameters.json \
+              location="$AZURE_LOCATION" \
+              acrName="$ACR_NAME" \
+              environmentName="$AZURE_ENVIRONMENT_NAME" \
+              apiName="$AZURE_API_APP_NAME" \
+              frontendName="$AZURE_FRONTEND_APP_NAME" \
+              apiImage="$ACR_LOGIN_SERVER/api:$GITHUB_SHA" \
+              frontendImage="$ACR_LOGIN_SERVER/frontend:$GITHUB_SHA"

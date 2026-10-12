@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+**/publish/
+**/node_modules/
+**/dist/
+**/.angular/
+**/.git/
+**/.vscode/
+**/coverage/
+**/*.user
+**/*.suo
+*.log

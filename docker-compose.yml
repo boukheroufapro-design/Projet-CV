@@ -1,0 +1,22 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: BackEnd/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: FrontEnd/Dockerfile
+    environment:
+      API_UPSTREAM: http://api:8080
+      NGINX_ENVSUBST_FILTER: ^API_UPSTREAM$
+    depends_on:
+      - api
+    ports:
+      - "4200:8080"

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "westeurope"
+    },
+    "acrName": {
+      "value": "replace-with-a-unique-acr-name"
+    },
+    "environmentName": {
+      "value": "projet-cv-env"
+    },
+    "apiName": {
+      "value": "projet-cv-api"
+    },
+    "frontendName": {
+      "value": "projet-cv-web"
+    },
+    "apiImage": {
+      "value": "replace-with-acr-name.azurecr.io/api:latest"
+    },
+    "frontendImage": {
+      "value": "replace-with-acr-name.azurecr.io/frontend:latest"
+    }
+  }
+}

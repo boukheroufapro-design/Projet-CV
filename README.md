@@ -1,59 +1,57 @@
-# FrontEnd
+# Projet-CV
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.2.2.
+Application composée d'un frontend Angular et d'une API ASP.NET Core.
 
-## Development server
+## Structure
 
-To start a local development server, run:
-
-```bash
-ng serve
+```text
+Projet-CV/
+├── BackEnd/                 # API ASP.NET Core et Dockerfile
+├── FrontEnd/                # Application Angular, Nginx et Dockerfile
+├── infra/azure/             # Infrastructure Azure en Bicep
+├── .github/workflows/       # Construction et déploiement continus
+└── docker-compose.yml       # Lancement local des deux conteneurs
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Lancer en local
 
-## Code scaffolding
+Installe Docker Desktop, puis ouvre un terminal à la racine du dépôt :
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
+```powershell
+docker compose up --build
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+- Angular : <http://localhost:4200>
+- API : <http://localhost:8080/weatherforecast>
+- OpenAPI en développement : <http://localhost:8080/openapi/v1.json>
 
-```bash
-ng generate --help
-```
+Nginx sert l'application Angular, redirige `/weatherforecast` et `/api/` vers l'API et renvoie les routes Angular vers `index.html`.
 
-## Building
+Pour arrêter les conteneurs, appuie sur `Ctrl+C`, puis lance `docker compose down`.
 
-To build the project run:
+## Déploiement Azure
 
-```bash
-ng build
-```
+Le workflow GitHub Actions construit les images, les publie dans Azure Container Registry (ACR), puis déploie les deux Container Apps et leur environnement avec Bicep.
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+### Préparer Azure
 
-## Running unit tests
+1. Crée une inscription d'application (service principal) avec une fédération OpenID Connect pour GitHub Actions. Configure aussi son rôle `Contributor` sur le groupe de ressources de déploiement. Le workflow se connecte à Azure sans mot de passe client.
+2. Configure les permissions de rôle sur le groupe de ressources : le workflow attribue `AcrPush` au service principal GitHub Actions pour publier les images ; Bicep attribue `AcrPull` aux identités des deux Container Apps. Le premier déploiement nécessite donc aussi la permission de créer des attributions de rôle. Si elle n'est pas disponible, demande à un administrateur Azure de préparer ces attributions.
+3. Configure les variables GitHub Actions du dépôt :
+   - `AZURE_RESOURCE_GROUP`
+   - `AZURE_LOCATION` (par exemple `westeurope`)
+   - `ACR_NAME` (nom globalement unique, en minuscules et sans tirets)
+   - `AZURE_ENVIRONMENT_NAME`
+   - `AZURE_API_APP_NAME`
+   - `AZURE_FRONTEND_APP_NAME`
+   - `AZURE_PRINCIPAL_ID` (ID d'objet du service principal GitHub Actions dans Azure)
+4. Configure les secrets GitHub Actions :
+   - `AZURE_CLIENT_ID`
+   - `AZURE_TENANT_ID`
+   - `AZURE_SUBSCRIPTION_ID`
+5. Dans `infra/azure/parameters.json`, remplace les noms d'exemple et vérifie la région. Les valeurs d'images sont fournies par le workflow lors du déploiement.
+6. Ajoute la fédération OIDC GitHub Actions à l'inscription d'application, puis pousse sur `master` ou `main` (selon la branche utilisée par le dépôt), ou lance manuellement le workflow **Build and deploy to Azure**.
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+Le workflow crée le groupe de ressources et l'ACR s'ils n'existent pas, construit et pousse les images, puis déploie `infra/azure/main.bicep`. Le frontend est exposé publiquement ; l'API reste accessible uniquement depuis l'environnement Container Apps. Son URL est transmise à Nginx lors du démarrage.
 
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+N'ajoute aucun secret, fichier `.env` ou identifiant Azure au dépôt.
