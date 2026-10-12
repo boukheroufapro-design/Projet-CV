@@ -15,10 +15,12 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render title', async () => {
+  it('should render an empty MoneyManager page', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, FrontEnd');
+    const page = compiled.querySelector('main[aria-label="MoneyManager"]');
+    expect(page).toBeTruthy();
+    expect(page?.textContent?.trim()).toBe('');
   });
 });

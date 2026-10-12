@@ -6,23 +6,29 @@ Application composée d'un frontend Angular et d'une API ASP.NET Core.
 
 ```text
 Projet-CV/
-├── BackEnd/                 # API ASP.NET Core et Dockerfile
-├── FrontEnd/                # Application Angular, Nginx et Dockerfile
-└── docker-compose.yml       # Lancement local des deux conteneurs
+├── BackEnd/                 # API ASP.NET Core
+└── FrontEnd/                # Application Angular
 ```
 
 ## Lancer en local
 
-Installe Docker Desktop, puis ouvre un terminal à la racine du dépôt :
+Lance l'API et le frontend dans deux terminaux distincts.
 
-```powershell
-docker compose up --build
+Dans un terminal :
+
+```shell
+cd BackEnd
+dotnet run
+```
+
+Dans un autre terminal :
+
+```shell
+cd FrontEnd
+npm install
+npm start
 ```
 
 - Angular : <http://localhost:4200>
-- API : <http://localhost:8080/MoneyManager>
-- OpenAPI en développement : <http://localhost:8080/openapi/v1.json>
-
-Nginx sert l'application Angular, redirige `/MoneyManager` et `/api/` vers l'API et renvoie les routes Angular vers `index.html`.
-
-Pour arrêter les conteneurs, appuie sur `Ctrl+C`, puis lance `docker compose down`.
+- API : <http://localhost:5119/MoneyManager>
+- OpenAPI en développement : <http://localhost:5119/openapi/v1.json>
