@@ -1,0 +1,18 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <div class="mb-4 h2" style="color: #7c3aed; font-weight: 700;">S'inscrire</div>
+    <div class="mb-3"><input type="text" class="form-control bg-secodary-body"
+    placeholder="Nom complet" formControlName="fullName"> 
+    </div>
+    <div class="mb-3"><input type="email" class="form-control bg-secodary-body"
+    placeholder="Email" formControlName="email">
+    </div>
+    <div class="mb-3"><input type="password" class="form-control bg-secodary-body"
+    placeholder="Mot de passe" formControlName="password">
+    </div>
+    <div class="mb-3"><input type="password" class="form-control bg-secodary-body"
+    placeholder="Confirmer le mot de passe" formControlName="confirmPassword">
+    </div>
+    <div class="mt-4">
+        <button type="submit" class="btn w-100" style="background: #7c3aed; border-color: #7c3aed; color: white; font-weight: 600;">S'inscrire</button>
+    </div>
+</form>
